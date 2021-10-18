@@ -3,20 +3,19 @@ FROM rust:1.55 AS build
 USER 0:0
 WORKDIR /home/rust
 
-RUN USER=root cargo new --bin vortex
-WORKDIR /home/rust/vortex
+# RUN curl -sSL https://bootstrap.pypa.io/get-pip.py | python3
+RUN sed -i 's/http:\/\//https:\/\//g' /etc/apt/sources.list \
+    && apt update -y \
+    && apt install -y meson ninja-build python3-pip
 
-COPY Cargo.toml Cargo.lock ./
-RUN cargo build --locked --release
-
-RUN rm src/*.rs target/release/deps/vortex*
-COPY src ./src
-RUN cargo install --locked --path .
+COPY . .
+RUN cargo build --release --locked
 
 # Bundle Stage
-FROM debian:bullseye
+FROM debian:bullseye-slim
+WORKDIR /app
 
-COPY --from=build /usr/local/cargo/bin/vortex ./vortex
+COPY --from=build /home/rust/target/release/vortex ./vortex
 
 EXPOSE 8080
 ENV HTTP_HOST 0.0.0.0:8080
